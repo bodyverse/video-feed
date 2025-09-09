@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { VideoItem } from "../types";
+import { isYouTube, isVimeo, makeVimeoEmbed, makeYouTubeEmbed, toVimeoId, toYouTubeId } from "../utils/embed";
 
 type Props = {
   item: VideoItem;
@@ -42,23 +43,40 @@ export function VideoCard({ item, index, onVisible }: Props) {
     }
   }, [isActive]);
 
+  const ytId = isYouTube(item.src) ? toYouTubeId(item.src) : null;
+  const vimeoId = !ytId && isVimeo(item.src) ? toVimeoId(item.src) : null;
+
   return (
     <div
       ref={ref}
-      className="snap-start h-screen w-full flex items-center justify-center relative"
+      className="snap-start h-screen w-full flex items-center justify-center relative bg-black"
     >
-      <video
-        ref={videoRef}
-        src={item.src}
-        poster={item.poster}
-        playsInline
-        muted
-        loop
-        preload="metadata"
-        className="max-h-full max-w-full object-contain"
-      />
+      {ytId || vimeoId ? (
+        isActive ? (
+          <iframe
+            key={ytId ? `yt-${ytId}` : `vi-${vimeoId}`}
+            src={ytId ? makeYouTubeEmbed(ytId!) : makeVimeoEmbed(vimeoId!)}
+            className="h-full w-full"
+            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+            allowFullScreen
+          />
+        ) : (
+          <div className="text-white/60">{item.title || 'Video'}</div>
+        )
+      ) : (
+        <video
+          ref={videoRef}
+          src={item.src}
+          poster={item.poster}
+          playsInline
+          muted
+          loop
+          preload="metadata"
+          className="max-h-full max-w-full object-contain"
+        />
+      )}
       {item.title && (
-        <div className="absolute bottom-6 left-4 right-4 text-white/90 text-sm">
+        <div className="pointer-events-none absolute bottom-6 left-4 right-4 text-white/90 text-sm">
           {item.title}
         </div>
       )}
