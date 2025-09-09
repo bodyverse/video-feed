@@ -38,8 +38,7 @@ jobs:
       - name: Build
         env:
           BASE_PATH: "/${{ github.event.repository.name }}/"
-          # Optionally set VITE_SHEET_CSV in repo secrets to use a Google Sheet CSV
-          # VITE_SHEET_CSV: ${{ secrets.VITE_SHEET_CSV }}
+          VITE_SHEET_CSV: ${{ secrets.VITE_SHEET_CSV }}
         run: pnpm build
 
       - name: Configure Pages
@@ -60,4 +59,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
