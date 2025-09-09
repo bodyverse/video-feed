@@ -45,6 +45,7 @@ export function makeYouTubeEmbed(id: string): string {
     disablekb: '1',
     fs: '0',
     cc_load_policy: '0',
+    enablejsapi: '1',
   });
   // Use the no-cookie domain to reduce tracking cookies
   return `https://www.youtube-nocookie.com/embed/${id}?${params.toString()}`;
@@ -61,6 +62,7 @@ export function makeVimeoEmbed(id: string): string {
     title: '0',
     byline: '0',
     portrait: '0',
+    api: '1',
   });
   return `https://player.vimeo.com/video/${id}?${params.toString()}`;
 }

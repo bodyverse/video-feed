@@ -11,7 +11,9 @@ type Props = {
 export function VideoCard({ item, index, onVisible }: Props) {
   const ref = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [isActive, setIsActive] = useState(false);
+  const [userPaused, setUserPaused] = useState(false);
 
   useEffect(() => {
     const node = ref.current;
@@ -36,12 +38,59 @@ export function VideoCard({ item, index, onVisible }: Props) {
   useEffect(() => {
     const el = videoRef.current;
     if (!el) return;
-    if (isActive) {
+    if (isActive && !userPaused) {
       el.play().catch(() => {});
     } else {
       el.pause();
     }
-  }, [isActive]);
+  }, [isActive, userPaused]);
+
+  // Control embeds via postMessage
+  useEffect(() => {
+    const frame = iframeRef.current;
+    if (!frame) return;
+    const win = frame.contentWindow;
+    if (!win) return;
+    const play = () => {
+      if (ytId) {
+        win.postMessage(
+          JSON.stringify({ event: "command", func: "playVideo", args: [] }),
+          "*"
+        );
+      } else if (vimeoId) {
+        win.postMessage({ method: "play" }, "https://player.vimeo.com");
+      }
+    };
+    const pause = () => {
+      if (ytId) {
+        win.postMessage(
+          JSON.stringify({ event: "command", func: "pauseVideo", args: [] }),
+          "*"
+        );
+      } else if (vimeoId) {
+        win.postMessage({ method: "pause" }, "https://player.vimeo.com");
+      }
+    };
+    if (isActive && !userPaused) play();
+    else pause();
+  }, [isActive, userPaused]);
+
+  const handleToggle = () => {
+    const el = videoRef.current;
+    if (el) {
+      if (el.paused) {
+        el.play().catch(() => {});
+        setUserPaused(false);
+      } else {
+        el.pause();
+        setUserPaused(true);
+      }
+      return;
+    }
+    // iframe case
+    const nowPaused = !userPaused;
+    setUserPaused(nowPaused);
+  };
 
   const ytId = isYouTube(item.src) ? toYouTubeId(item.src) : null;
   const vimeoId = !ytId && isVimeo(item.src) ? toVimeoId(item.src) : null;
@@ -50,16 +99,20 @@ export function VideoCard({ item, index, onVisible }: Props) {
     <div
       ref={ref}
       className="snap-start h-screen w-full flex items-center justify-center relative bg-black"
+      onClick={handleToggle}
     >
       {ytId || vimeoId ? (
         isActive ? (
-          <iframe
-            key={ytId ? `yt-${ytId}` : `vi-${vimeoId}`}
-            src={ytId ? makeYouTubeEmbed(ytId!) : makeVimeoEmbed(vimeoId!)}
-            className="h-full w-full pointer-events-none"
-            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-            allowFullScreen
-          />
+          <>
+            <iframe
+              ref={iframeRef}
+              key={ytId ? `yt-${ytId}` : `vi-${vimeoId}`}
+              src={ytId ? makeYouTubeEmbed(ytId!) : makeVimeoEmbed(vimeoId!)}
+              className="h-full w-full pointer-events-none"
+              allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+              allowFullScreen
+            />
+          </>
         ) : (
           <div className="text-white/60">{item.title || 'Video'}</div>
         )
