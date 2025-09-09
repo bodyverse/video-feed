@@ -56,7 +56,7 @@ export function VideoCard({ item, index, onVisible }: Props) {
           <iframe
             key={ytId ? `yt-${ytId}` : `vi-${vimeoId}`}
             src={ytId ? makeYouTubeEmbed(ytId!) : makeVimeoEmbed(vimeoId!)}
-            className="h-full w-full"
+            className="h-full w-full pointer-events-none"
             allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
             allowFullScreen
           />

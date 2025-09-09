@@ -42,8 +42,12 @@ export function makeYouTubeEmbed(id: string): string {
     modestbranding: '1',
     rel: '0',
     playsinline: '1',
+    disablekb: '1',
+    fs: '0',
+    cc_load_policy: '0',
   });
-  return `https://www.youtube.com/embed/${id}?${params.toString()}`;
+  // Use the no-cookie domain to reduce tracking cookies
+  return `https://www.youtube-nocookie.com/embed/${id}?${params.toString()}`;
 }
 
 export function makeVimeoEmbed(id: string): string {
@@ -51,9 +55,12 @@ export function makeVimeoEmbed(id: string): string {
     autoplay: '1',
     muted: '1',
     loop: '1',
-    background: '1',
+    background: '1', // hides controls/UI
     autopause: '0',
+    dnt: '1',
+    title: '0',
+    byline: '0',
+    portrait: '0',
   });
   return `https://player.vimeo.com/video/${id}?${params.toString()}`;
 }
-
