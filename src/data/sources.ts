@@ -69,7 +69,9 @@ async function loadFromSheetCsv(): Promise<VideoItem[]> {
 
 async function loadFromPublicJson(): Promise<VideoItem[]> {
   try {
-    const res = await fetch("/videos.json", { cache: "no-cache" });
+    const base = (import.meta as any).env?.BASE_URL ?? "/";
+    const url = `${base.replace(/\/$/, "/")}videos.json`;
+    const res = await fetch(url, { cache: "no-cache" });
     if (!res.ok) return [];
     const arr = (await res.json()) as VideoItem[];
     return arr.filter((v) => !!v.src);
