@@ -24,11 +24,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
       - name: Install
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       - name: Build
-        run: npm run build
+        run: pnpm build
         env:
           # For Vite, BASE is configured in vite.config.ts
           VITE_SHEET_CSV: ${{ secrets.VITE_SHEET_CSV }}
@@ -46,7 +49,8 @@ jobs:
     steps:
       - name: Configure Pages
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
