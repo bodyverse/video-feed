@@ -6,14 +6,20 @@ type Props = {
   item: VideoItem;
   index: number;
   onVisible: (index: number) => void;
+  preload?: boolean;
 };
 
-export function VideoCard({ item, index, onVisible }: Props) {
+export function VideoCard({ item, index, onVisible, preload = false }: Props) {
   const ref = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [isActive, setIsActive] = useState(false);
   const [userPaused, setUserPaused] = useState(false);
+  const wasPreloadedRef = useRef(false);
+
+  useEffect(() => {
+    if (preload) wasPreloadedRef.current = true;
+  }, [preload]);
 
   useEffect(() => {
     const node = ref.current;
@@ -102,15 +108,20 @@ export function VideoCard({ item, index, onVisible }: Props) {
       onClick={handleToggle}
     >
       {ytId || vimeoId ? (
-        isActive ? (
+        (isActive || preload) ? (
           <>
             <iframe
               ref={iframeRef}
               key={ytId ? `yt-${ytId}` : `vi-${vimeoId}`}
-              src={ytId ? makeYouTubeEmbed(ytId!) : makeVimeoEmbed(vimeoId!)}
+              src={ytId
+                ? makeYouTubeEmbed(ytId!, { autoplay: wasPreloadedRef.current ? false : isActive && !preload })
+                : makeVimeoEmbed(vimeoId!, { autoplay: wasPreloadedRef.current ? false : isActive && !preload })
+              }
               className="h-full w-full pointer-events-none"
               allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
               allowFullScreen
+              // Hide when only preloading to avoid visual artifacts
+              style={isActive ? undefined : { position: 'absolute', left: '-9999px', width: '1px', height: '1px', opacity: 0 }}
             />
           </>
         ) : (
@@ -124,7 +135,7 @@ export function VideoCard({ item, index, onVisible }: Props) {
           playsInline
           muted
           loop
-          preload="metadata"
+          preload={preload ? "auto" : "metadata"}
           className="max-h-full max-w-full object-contain"
         />
       )}

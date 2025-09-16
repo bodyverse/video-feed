@@ -31,9 +31,19 @@ export default function VideoFeed() {
       return (
         <div className="p-6 text-center text-white/70">Loading videos…</div>
       );
-    return videos.map((v, i) => (
-      <VideoCard key={v.id || v.src} item={v} index={i} onVisible={setCurrent} />
-    ));
+    const preloadAhead = 2;
+    return videos.map((v, i) => {
+      const preload = i > current && i <= current + preloadAhead;
+      return (
+        <VideoCard
+          key={v.id || v.src}
+          item={v}
+          index={i}
+          onVisible={setCurrent}
+          preload={preload}
+        />
+      );
+    });
   }, [videos, error]);
 
   // Helper to scroll to an index

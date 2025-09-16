@@ -32,9 +32,10 @@ export function toVimeoId(url: string): string | null {
   return null;
 }
 
-export function makeYouTubeEmbed(id: string): string {
+export function makeYouTubeEmbed(id: string, opts?: { autoplay?: boolean }): string {
+  const autoplay = opts?.autoplay ?? true;
   const params = new URLSearchParams({
-    autoplay: '1',
+    autoplay: autoplay ? '1' : '0',
     mute: '1',
     loop: '1',
     playlist: id,
@@ -51,9 +52,10 @@ export function makeYouTubeEmbed(id: string): string {
   return `https://www.youtube-nocookie.com/embed/${id}?${params.toString()}`;
 }
 
-export function makeVimeoEmbed(id: string): string {
+export function makeVimeoEmbed(id: string, opts?: { autoplay?: boolean }): string {
+  const autoplay = opts?.autoplay ?? true;
   const params = new URLSearchParams({
-    autoplay: '1',
+    autoplay: autoplay ? '1' : '0',
     muted: '1',
     loop: '1',
     background: '1', // hides controls/UI
