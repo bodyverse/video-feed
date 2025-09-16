@@ -4,14 +4,21 @@ import type { VideoItem } from "../types";
 export function useVideoPreloader(
   videos: VideoItem[],
   currentIndex: number,
-  preloadCount = 2
+  preloadAhead = 2,
+  preloadBehind = 1
 ) {
   const cache = useRef<Map<string, HTMLVideoElement>>(new Map());
 
   useEffect(() => {
-    const start = Math.max(0, currentIndex + 1);
-    const end = Math.min(videos.length, currentIndex + 1 + preloadCount);
-    const toPreload = videos.slice(start, end);
+    const aheadStart = Math.max(0, currentIndex + 1);
+    const aheadEnd = Math.min(videos.length, currentIndex + 1 + preloadAhead);
+    const behindStart = Math.max(0, currentIndex - preloadBehind);
+    const behindEnd = Math.max(0, currentIndex); // exclusive of current
+
+    const set = new Map<string, VideoItem>();
+    videos.slice(aheadStart, aheadEnd).forEach((v) => set.set(v.src, v));
+    videos.slice(behindStart, behindEnd).forEach((v) => set.set(v.src, v));
+    const toPreload = Array.from(set.values());
 
     toPreload.forEach((v) => {
       if (!cache.current.has(v.src)) {
@@ -40,7 +47,7 @@ export function useVideoPreloader(
         }
       }
     };
-  }, [videos, currentIndex, preloadCount]);
+  }, [videos, currentIndex, preloadAhead, preloadBehind]);
 
   return cache.current;
 }

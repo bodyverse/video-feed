@@ -23,7 +23,9 @@ export default function VideoFeed() {
       .catch((e) => setError(String(e)));
   }, []);
 
-  useVideoPreloader(videos, current, 2);
+  const PRELOAD_AHEAD = Number((import.meta as any).env?.VITE_PRELOAD_AHEAD ?? 2);
+  const PRELOAD_BEHIND = Number((import.meta as any).env?.VITE_PRELOAD_BEHIND ?? 1);
+  useVideoPreloader(videos, current, PRELOAD_AHEAD, PRELOAD_BEHIND);
 
   const content = useMemo(() => {
     if (error) return <div className="p-4 text-red-400">{error}</div>;
@@ -31,10 +33,20 @@ export default function VideoFeed() {
       return (
         <div className="p-6 text-center text-white/70">Loading videos…</div>
       );
-    return videos.map((v, i) => (
-      <VideoCard key={v.id || v.src} item={v} index={i} onVisible={setCurrent} />
-    ));
-  }, [videos, error]);
+    return videos.map((v, i) => {
+      const preload = (i > current && i <= current + PRELOAD_AHEAD) ||
+                      (i < current && i >= current - PRELOAD_BEHIND);
+      return (
+        <VideoCard
+          key={v.id || v.src}
+          item={v}
+          index={i}
+          onVisible={setCurrent}
+          preload={preload}
+        />
+      );
+    });
+  }, [videos, error, current]);
 
   // Helper to scroll to an index
   const scrollToIndex = (idx: number) => {
