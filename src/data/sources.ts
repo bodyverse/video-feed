@@ -1,5 +1,10 @@
 import type { VideoItem } from "../types";
 
+export type LoadOptions = {
+  sheetCsvUrl?: string;
+  publicJsonPath?: string; // relative to BASE_URL
+};
+
 function splitCsvLine(line: string): string[] {
   const out: string[] = [];
   let cur = '';
@@ -53,8 +58,26 @@ function parseCsv(csv: string): VideoItem[] {
   return items;
 }
 
-async function loadFromSheetCsv(): Promise<VideoItem[]> {
-  const url = import.meta.env.VITE_SHEET_CSV as string | undefined;
+function normalizeGoogleSheetCsvUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    // If already an export/gviz link, keep it
+    if (/\/export$/i.test(u.pathname) || u.pathname.includes('/gviz/')) return url;
+    // Expect /spreadsheets/d/<id>/edit?gid=<gid>
+    const parts = u.pathname.split('/');
+    const idIndex = parts.findIndex((p) => p === 'd');
+    const sheetId = idIndex >= 0 ? parts[idIndex + 1] : '';
+    const gid = u.searchParams.get('gid') || '0';
+    if (sheetId) {
+      return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+    }
+  } catch {}
+  return url;
+}
+
+async function loadFromSheetCsv(opts?: LoadOptions): Promise<VideoItem[]> {
+  const raw = (opts?.sheetCsvUrl as string | undefined) || (import.meta as any).env?.VITE_SHEET_CSV;
+  const url = raw ? normalizeGoogleSheetCsvUrl(raw) : undefined;
   if (!url) return [];
   try {
     const res = await fetch(url, { cache: "no-cache" });
@@ -67,10 +90,11 @@ async function loadFromSheetCsv(): Promise<VideoItem[]> {
   }
 }
 
-async function loadFromPublicJson(): Promise<VideoItem[]> {
+async function loadFromPublicJson(opts?: LoadOptions): Promise<VideoItem[]> {
   try {
     const base = (import.meta as any).env?.BASE_URL ?? "/";
-    const url = `${base.replace(/\/$/, "/")}videos.json`;
+    const rel = opts?.publicJsonPath || "videos.json";
+    const url = `${base.replace(/\/$/, "/")}${rel}`;
     const res = await fetch(url, { cache: "no-cache" });
     if (!res.ok) return [];
     const arr = (await res.json()) as VideoItem[];
@@ -80,10 +104,10 @@ async function loadFromPublicJson(): Promise<VideoItem[]> {
   }
 }
 
-export async function loadVideos(): Promise<VideoItem[]> {
+export async function loadVideos(opts?: LoadOptions): Promise<VideoItem[]> {
   const [fromSheet, fromJson] = await Promise.all([
-    loadFromSheetCsv(),
-    loadFromPublicJson(),
+    loadFromSheetCsv(opts),
+    loadFromPublicJson(opts),
   ]);
   // Merge, sheet first then fallback JSON; dedupe by src
   const seen = new Set<string>();

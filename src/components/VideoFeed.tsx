@@ -1,11 +1,15 @@
 import type React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { loadVideos } from "../data/sources";
+import { loadVideos, type LoadOptions } from "../data/sources";
 import type { VideoItem } from "../types";
 import { useVideoPreloader } from "../hooks/useVideoPreloader";
 import VideoCard from "./VideoCard";
 
-export default function VideoFeed() {
+type FeedProps = {
+  source?: LoadOptions;
+};
+
+export default function VideoFeed({ source }: FeedProps) {
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [current, setCurrent] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -18,10 +22,10 @@ export default function VideoFeed() {
   const isDraggingRef = useRef(false);
 
   useEffect(() => {
-    loadVideos()
+    loadVideos(source)
       .then((v) => setVideos(v))
       .catch((e) => setError(String(e)));
-  }, []);
+  }, [source]);
 
   const PRELOAD_AHEAD = Number((import.meta as any).env?.VITE_PRELOAD_AHEAD ?? 2);
   const PRELOAD_BEHIND = Number((import.meta as any).env?.VITE_PRELOAD_BEHIND ?? 1);
