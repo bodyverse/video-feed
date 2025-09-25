@@ -11,9 +11,10 @@ type FeedProps = {
 
 export default function VideoFeed({ source }: FeedProps) {
   const [videos, setVideos] = useState<VideoItem[]>([]);
-  const [current, setCurrent] = useState(0);
+  const [currentSlide, setCurrentSlide] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const endingRef = useRef<HTMLDivElement | null>(null);
 
   // Gesture state
   const startYRef = useRef<number | null>(null);
@@ -27,9 +28,26 @@ export default function VideoFeed({ source }: FeedProps) {
       .catch((e) => setError(String(e)));
   }, [source]);
 
+  useEffect(() => {
+    if (videos.length === 0) {
+      setCurrentSlide(0);
+      return;
+    }
+    setCurrentSlide((prev) => {
+      const maxSlide = videos.length; // includes ending slide
+      return Math.min(prev, maxSlide);
+    });
+  }, [videos.length]);
+
   const PRELOAD_AHEAD = Number((import.meta as any).env?.VITE_PRELOAD_AHEAD ?? 2);
   const PRELOAD_BEHIND = Number((import.meta as any).env?.VITE_PRELOAD_BEHIND ?? 1);
-  useVideoPreloader(videos, current, PRELOAD_AHEAD, PRELOAD_BEHIND);
+  const totalSlides = videos.length + (videos.length > 0 ? 1 : 0);
+  const lastVideoIndex = Math.max(0, videos.length - 1);
+  const currentVideoIndex = videos.length > 0
+    ? Math.min(currentSlide, lastVideoIndex)
+    : 0;
+  const activeVideoIndex = currentSlide >= videos.length ? -1 : currentVideoIndex;
+  useVideoPreloader(videos, currentVideoIndex, PRELOAD_AHEAD, PRELOAD_BEHIND);
 
   const content = useMemo(() => {
     if (error) return <div className="p-4 text-red-400">{error}</div>;
@@ -37,26 +55,39 @@ export default function VideoFeed({ source }: FeedProps) {
       return (
         <div className="p-6 text-center text-white/70">Loading videos…</div>
       );
-    return videos.map((v, i) => {
-      const preload = (i > current && i <= current + PRELOAD_AHEAD) ||
-                      (i < current && i >= current - PRELOAD_BEHIND);
+    const slides = videos.map((v, i) => {
+      const preload = (i > currentVideoIndex && i <= currentVideoIndex + PRELOAD_AHEAD) ||
+                      (i < currentVideoIndex && i >= currentVideoIndex - PRELOAD_BEHIND);
       return (
         <VideoCard
           key={v.id || v.src}
           item={v}
           index={i}
-          onVisible={setCurrent}
+          activeIndex={activeVideoIndex}
+          onVisible={setCurrentSlide}
           preload={preload}
         />
       );
     });
-  }, [videos, error, current]);
+    slides.push(
+      <div
+        key="ending-slide"
+        ref={endingRef}
+        className="snap-start flex h-[50vh] w-full items-center justify-center bg-black"
+      >
+        <div className="text-white/70 text-2xl uppercase tracking-widest">This is the end</div>
+      </div>
+    );
+    return slides;
+  }, [videos, error, currentVideoIndex, activeVideoIndex, PRELOAD_AHEAD, PRELOAD_BEHIND]);
 
   // Helper to scroll to an index
   const scrollToIndex = (idx: number) => {
     const container = containerRef.current;
     if (!container) return;
-    const clamped = Math.max(0, Math.min(videos.length - 1, idx));
+    if (totalSlides === 0) return;
+    const clamped = Math.max(0, Math.min(totalSlides - 1, idx));
+    setCurrentSlide(clamped);
     const target = container.children[clamped] as HTMLElement | undefined;
     if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -68,16 +99,16 @@ export default function VideoFeed({ source }: FeedProps) {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowDown" || e.key === "PageDown") {
         e.preventDefault();
-        scrollToIndex(current + 1);
+        scrollToIndex(currentSlide + 1);
       } else if (e.key === "ArrowUp" || e.key === "PageUp") {
         e.preventDefault();
-        scrollToIndex(current - 1);
+        scrollToIndex(currentSlide - 1);
       } else if (e.key === "Home") {
         e.preventDefault();
         scrollToIndex(0);
       } else if (e.key === "End") {
         e.preventDefault();
-        scrollToIndex(videos.length - 1);
+        scrollToIndex(totalSlides - 1);
       }
     };
     el.addEventListener("keydown", onKey);
@@ -85,7 +116,7 @@ export default function VideoFeed({ source }: FeedProps) {
     el.tabIndex = 0;
     el.focus({ preventScroll: true });
     return () => el.removeEventListener("keydown", onKey);
-  }, [current, videos.length]);
+  }, [currentSlide, totalSlides]);
 
   // Pointer/touch swipe detection for up/down navigation
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -104,7 +135,8 @@ export default function VideoFeed({ source }: FeedProps) {
     // Apply subtle visual feedback on the active card
     const container = containerRef.current;
     if (!container) return;
-    const active = container.children[current] as HTMLElement | undefined;
+    const activeIdx = totalSlides > 0 ? Math.min(currentSlide, totalSlides - 1) : 0;
+    const active = container.children[activeIdx] as HTMLElement | undefined;
     if (active) {
       const dy = (lastYRef.current ?? 0) - (startYRef.current ?? 0);
       // No transition while dragging
@@ -131,7 +163,8 @@ export default function VideoFeed({ source }: FeedProps) {
     const velocityThreshold = 0.5 / 100; // 0.005 px/ms (0.5px per 100ms)
     // Reset visual displacement with a quick ease-out
     const container = containerRef.current;
-    const active = container?.children[current] as HTMLElement | undefined;
+    const activeIdx = totalSlides > 0 ? Math.min(currentSlide, totalSlides - 1) : 0;
+    const active = container?.children[activeIdx] as HTMLElement | undefined;
     if (active) {
       active.style.transition = "transform 180ms ease-out";
       active.style.transform = "translateY(0px)";
@@ -142,8 +175,8 @@ export default function VideoFeed({ source }: FeedProps) {
     }
 
     if (absDy > dragThreshold || absVy > velocityThreshold) {
-      if (dy < 0) scrollToIndex(current + 1); // swipe up → next
-      else if (dy > 0) scrollToIndex(current - 1); // swipe down → prev
+      if (dy < 0) scrollToIndex(currentSlide + 1); // swipe up → next
+      else if (dy > 0) scrollToIndex(currentSlide - 1); // swipe down → prev
     }
   };
 
@@ -156,10 +189,28 @@ export default function VideoFeed({ source }: FeedProps) {
     if (Math.abs(e.deltaY) > threshold) {
       e.preventDefault();
       wheelCooldownRef.current = now;
-      if (e.deltaY > 0) scrollToIndex(current + 1);
-      else scrollToIndex(current - 1);
+      if (e.deltaY > 0) scrollToIndex(currentSlide + 1);
+      else scrollToIndex(currentSlide - 1);
     }
   };
+
+  // Track visibility of the ending slide so navigation knows its index
+  useEffect(() => {
+    const node = endingRef.current;
+    if (!node || videos.length === 0) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
+            setCurrentSlide(videos.length);
+          }
+        });
+      },
+      { threshold: [0, 0.6, 1] }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [videos.length]);
 
   return (
     <div
