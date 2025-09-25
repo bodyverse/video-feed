@@ -5,15 +5,15 @@ import { isYouTube, isVimeo, makeVimeoEmbed, makeYouTubeEmbed, toVimeoId, toYouT
 type Props = {
   item: VideoItem;
   index: number;
+  activeIndex: number;
   onVisible: (index: number) => void;
   preload?: boolean;
 };
 
-export function VideoCard({ item, index, onVisible, preload = false }: Props) {
+export function VideoCard({ item, index, activeIndex, onVisible, preload = false }: Props) {
   const ref = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const [isActive, setIsActive] = useState(false);
   const [userPaused, setUserPaused] = useState(false);
   const wasPreloadedRef = useRef(false);
 
@@ -27,12 +27,8 @@ export function VideoCard({ item, index, onVisible, preload = false }: Props) {
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
-          if (e.isIntersecting && e.intersectionRatio > 0.6) {
-            setIsActive(true);
-            onVisible(index);
-          } else {
-            setIsActive(false);
-          }
+          const visible = e.isIntersecting && e.intersectionRatio > 0.6;
+          if (visible) onVisible(index);
         });
       },
       { threshold: [0, 0.6, 1] }
@@ -40,6 +36,14 @@ export function VideoCard({ item, index, onVisible, preload = false }: Props) {
     io.observe(node);
     return () => io.disconnect();
   }, [index, onVisible]);
+
+  const isActive = activeIndex === index;
+
+  useEffect(() => {
+    if (!isActive && userPaused) {
+      setUserPaused(false);
+    }
+  }, [isActive, userPaused]);
 
   useEffect(() => {
     const el = videoRef.current;
