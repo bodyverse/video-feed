@@ -17,7 +17,7 @@ export function toYouTubeId(url: string): string | null {
       if (u.pathname.startsWith('/shorts/')) return u.pathname.split('/')[2] || null;
       if (u.pathname.startsWith('/embed/')) return u.pathname.split('/')[2] || null;
     }
-  } catch {}
+  } catch { }
   return null;
 }
 
@@ -28,7 +28,7 @@ export function toVimeoId(url: string): string | null {
       const parts = u.pathname.split('/').filter(Boolean);
       return parts[0] || null;
     }
-  } catch {}
+  } catch { }
   return null;
 }
 
@@ -36,7 +36,7 @@ export function makeYouTubeEmbed(id: string, opts?: { autoplay?: boolean }): str
   const autoplay = opts?.autoplay ?? true;
   const params = new URLSearchParams({
     autoplay: autoplay ? '1' : '0',
-    mute: '1',
+    // mute: '1',
     loop: '1',
     playlist: id,
     controls: '0',
@@ -56,7 +56,7 @@ export function makeVimeoEmbed(id: string, opts?: { autoplay?: boolean }): strin
   const autoplay = opts?.autoplay ?? true;
   const params = new URLSearchParams({
     autoplay: autoplay ? '1' : '0',
-    muted: '1',
+    // muted: '1',
     loop: '1',
     background: '1', // hides controls/UI
     autopause: '0',

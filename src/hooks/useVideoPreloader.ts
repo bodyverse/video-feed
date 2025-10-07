@@ -25,7 +25,7 @@ export function useVideoPreloader(
         const el = document.createElement("video");
         el.src = v.src;
         el.preload = "auto";
-        el.muted = true;
+        // el.muted = true;
         // Kick off load
         el.load();
         cache.current.set(v.src, el);

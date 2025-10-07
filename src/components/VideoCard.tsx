@@ -49,7 +49,7 @@ export function VideoCard({ item, index, activeIndex, onVisible, preload = false
     const el = videoRef.current;
     if (!el) return;
     if (isActive && !userPaused) {
-      el.play().catch(() => {});
+      el.play().catch(() => { });
     } else {
       el.pause();
     }
@@ -89,7 +89,7 @@ export function VideoCard({ item, index, activeIndex, onVisible, preload = false
     const el = videoRef.current;
     if (el) {
       if (el.paused) {
-        el.play().catch(() => {});
+        el.play().catch(() => { });
         setUserPaused(false);
       } else {
         el.pause();
@@ -137,7 +137,6 @@ export function VideoCard({ item, index, activeIndex, onVisible, preload = false
           src={item.src}
           poster={item.poster}
           playsInline
-          muted
           loop
           preload={preload ? "auto" : "metadata"}
           className="max-h-full max-w-full object-contain"
