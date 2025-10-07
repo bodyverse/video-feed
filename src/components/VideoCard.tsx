@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { VideoItem } from "../types";
 import { isYouTube, isVimeo, makeVimeoEmbed, makeYouTubeEmbed, toVimeoId, toYouTubeId } from "../utils/embed";
 
@@ -16,6 +16,11 @@ export function VideoCard({ item, index, activeIndex, onVisible, preload = false
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [userPaused, setUserPaused] = useState(false);
   const wasPreloadedRef = useRef(false);
+  const skipNextToggleRef = useRef(false);
+  const ytId = isYouTube(item.src) ? toYouTubeId(item.src) : null;
+  const vimeoId = !ytId && isVimeo(item.src) ? toVimeoId(item.src) : null;
+  const isEmbed = !!(ytId || vimeoId);
+  const needsFirstResumeRef = useRef(isEmbed);
 
   useEffect(() => {
     if (preload) wasPreloadedRef.current = true;
@@ -40,20 +45,61 @@ export function VideoCard({ item, index, activeIndex, onVisible, preload = false
   const isActive = activeIndex === index;
 
   useEffect(() => {
+    needsFirstResumeRef.current = isEmbed;
+  }, [isEmbed, item.src]);
+
+  useEffect(() => {
     if (!isActive && userPaused) {
       setUserPaused(false);
     }
   }, [isActive, userPaused]);
 
+  const requestPlay = useCallback((markGesture = false) => {
+    const el = videoRef.current;
+    if (el) {
+      const playResult = el.play();
+      if (playResult && typeof (playResult as Promise<void>).then === "function") {
+        return (playResult as Promise<void>)
+          .then(() => {
+            setUserPaused(false);
+            if (markGesture) needsFirstResumeRef.current = false;
+            return true;
+          })
+          .catch(() => {
+            setUserPaused(true);
+            return false;
+          });
+      }
+      setUserPaused(false);
+      if (markGesture) needsFirstResumeRef.current = false;
+      return Promise.resolve(true);
+    }
+    const frame = iframeRef.current;
+    const win = frame?.contentWindow;
+    if (!win) return Promise.resolve(false);
+    if (ytId) {
+      win.postMessage(
+        JSON.stringify({ event: "command", func: "playVideo", args: [] }),
+        "*"
+      );
+    } else if (vimeoId) {
+      win.postMessage({ method: "play" }, "https://player.vimeo.com");
+    } else {
+      return Promise.resolve(false);
+    }
+    setUserPaused(false);
+    if (markGesture) needsFirstResumeRef.current = false;
+    return Promise.resolve(true);
+  }, [vimeoId, ytId]);
+
   useEffect(() => {
     const el = videoRef.current;
-    if (!el) return;
     if (isActive && !userPaused) {
-      el.play().catch(() => { });
-    } else {
+      requestPlay();
+    } else if (el) {
       el.pause();
     }
-  }, [isActive, userPaused]);
+  }, [isActive, userPaused, requestPlay]);
 
   // Control embeds via postMessage
   useEffect(() => {
@@ -85,12 +131,29 @@ export function VideoCard({ item, index, activeIndex, onVisible, preload = false
     else pause();
   }, [isActive, userPaused]);
 
+  const handlePointerDown = () => {
+    if (!isActive) return;
+    const el = videoRef.current;
+    const frame = iframeRef.current;
+    const shouldAttempt =
+      (el && el.paused) ||
+      (!el && frame && (userPaused || needsFirstResumeRef.current));
+    if (!shouldAttempt) return;
+    skipNextToggleRef.current = true;
+    requestPlay(true).then((ok) => {
+      if (!ok) skipNextToggleRef.current = false;
+    });
+  };
+
   const handleToggle = () => {
+    if (skipNextToggleRef.current) {
+      skipNextToggleRef.current = false;
+      return;
+    }
     const el = videoRef.current;
     if (el) {
       if (el.paused) {
-        el.play().catch(() => { });
-        setUserPaused(false);
+        requestPlay(true);
       } else {
         el.pause();
         setUserPaused(true);
@@ -102,13 +165,11 @@ export function VideoCard({ item, index, activeIndex, onVisible, preload = false
     setUserPaused(nowPaused);
   };
 
-  const ytId = isYouTube(item.src) ? toYouTubeId(item.src) : null;
-  const vimeoId = !ytId && isVimeo(item.src) ? toVimeoId(item.src) : null;
-
   return (
     <div
       ref={ref}
       className="snap-start h-screen w-full flex items-center justify-center relative bg-black"
+      onPointerDown={handlePointerDown}
       onClick={handleToggle}
     >
       {ytId || vimeoId ? (
